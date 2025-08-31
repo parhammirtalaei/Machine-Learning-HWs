@@ -1,0 +1,31 @@
+# 1. CLONE & SETUP SUBMODULE
+!git clone https://github.com/LCFractal/VLNREM.git
+%cd /content/VLNREM
+# Manually clone the missing pybind11 library
+!git clone https://github.com/pybind/pybind11.git
+
+# 2. INSTALL & COMPILE
+!sudo apt-get install -y libjsoncpp-dev libepoxy-dev libglm-dev libosmesa6 libosmesa6-dev libglew-dev
+!pip install tensorboardX
+!mkdir -p build && cd build && cmake -DEGL_RENDERING=ON .. && make -j8
+
+# 3. PREPARE FILES & DATA
+!cp build/MatterSim.so r2r_src/
+!bash ./tasks/R2R/data/download.sh
+# Download and unzip image features
+!mkdir -p img_features && wget https://www.dropbox.com/s/o57kxh2mn5rkx4o/ResNet-152-imagenet.zip -P img_features/
+%cd img_features
+!unzip -q ResNet-152-imagenet.zip
+%cd ..
+
+# 4. PATCH & RUN TRAINING
+# Fix all the code bugs
+!sed -i "s/base64.decodestring/base64.b64decode/g" r2r_src/utils.py
+!sed -i "s/assert False/#assert False/" r2r_src/train.py
+!sed -i "s/#assert False/        pass/" r2r_src/train.py
+!sed -i "s/--train aug/--train auglistener/g" run/agent.bash
+!sed -i "/train(args)/d" r2r_src/train.py
+!sed -i 's/unbuffer python/python -u/g' run/agent.bash
+
+# Start the training on the GPU!
+!bash run/agent.bash
